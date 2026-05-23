@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+
+  --color-primary-orange: #FF8A00;
+  --color-surface: #FDFCFB;
+  --color-ink: #2D3436;
+  --color-border-main: #F0EBE3;
+  --color-border-sub: #EBE5DA;
+  --color-muted: #7F8C8D;
+  --color-muted-light: #95A5A6;
+  --color-accent-blue: #3498DB;
+  --color-accent-green: #2ECC71;
+  --color-bg-soft: #F9F7F2;
+  --color-bg-orange: #FFF4E6;
+}
+
+@layer base {
+  body {
+    @apply select-none;
+  }
+}
+
+@layer utilities {
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .animate-shake {
+    animation: shake 0.2s ease-in-out 0s 2 alternate;
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Main user details and aggregate status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "selectedLevel": { "type": "integer", "description": "Current HSK level (1-6)" },
+        "totalXp": { "type": "integer" },
+        "currentStreak": { "type": "integer" },
+        "lastStudiedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "totalXp"]
+    },
+    "HSKProgress": {
+      "title": "HSK Level Progress",
+      "description": "Specific progress metrics for a single HSK level",
+      "type": "object",
+      "properties": {
+        "vocabularyCompleted": { "type": "integer" },
+        "listeningCompleted": { "type": "integer" },
+        "grammarCompleted": { "type": "integer" },
+        "readingCompleted": { "type": "integer" },
+        "mockExamHighScore": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "WordMastery": {
+      "title": "Word Mastery Status",
+      "description": "Tracking learning state for individual vocabulary words",
+      "type": "object",
+      "properties": {
+        "wordId": { "type": "string" },
+        "status": { "enum": ["new", "learning", "mastered"] },
+        "correctCount": { "type": "integer" },
+        "wrongCount": { "type": "integer" },
+        "lastSeenAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LeaderboardEntry": {
+      "title": "Weekly Leaderboard Entry",
+      "description": "XP earned in the current week",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "weeklyXp": { "type": "integer" },
+        "weekId": { "type": "string", "description": "YYYY-WW format" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "UsedTrial": {
+      "title": "Used Trial Log",
+      "description": "Logs when an email has used a trial",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["email", "usedAt", "userId"]
+    },
+    "UsedTrialDevice": {
+      "title": "Used Trial Device Log",
+      "description": "Logs when a device ID has used a trial",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string" },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["deviceId", "usedAt", "userId"]
+    }
+  },
+  "firestore": {
+    "users/{uid}": {
+      "schema": "User",
+      "description": "Global user profile"
+    },
+    "users/{uid}/progress/{levelId}": {
+      "schema": "HSKProgress",
+      "description": "Progress for HSK Levels 1-6"
+    },
+    "users/{uid}/mastery/{wordId}": {
+      "schema": "WordMastery",
+      "description": "Individual word mastery data"
+    },
+    "leaderboards/weekly/users/{uid}": {
+      "schema": "LeaderboardEntry",
+      "description": "Weekly competitive ranking data"
+    },
+    "usedTrials/{email}": {
+      "schema": "UsedTrial",
+      "description": "Abuse prevention: One trial per guest email"
+    },
+    "usedTrialDevices/{deviceId}": {
+      "schema": "UsedTrialDevice",
+      "description": "Abuse prevention: One trial per fingerprint device ID"
+    }
+  }
+}

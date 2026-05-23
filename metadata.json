@@ -1,0 +1,6 @@
+{
+  "name": "mechi",
+  "description": "Монгол хэлээр Хятад хэл сурах хамгийн хялбар, сонирхолтой платформ. HSK 1-6 шалгалтанд бэлдэх модуль, үг цээжлэх, сонсгол болон дүрэм.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
