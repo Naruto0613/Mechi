@@ -6,6 +6,8 @@ import {
   getUserProfile,
   getLocalUserByEmail,
   subscribeToPendingPayments,
+  subscribeToFeedbacks,
+  markFeedbackSeen,
 } from "../lib/db";
 import { auth } from "../lib/firebase";
 import emailjs from "emailjs-com";
@@ -21,6 +23,7 @@ import {
   Clipboard,
   Clock,
   Mail,
+  Star,
 } from "lucide-react";
 
 export default function AdminPanel() {
@@ -29,9 +32,9 @@ export default function AdminPanel() {
   const { refreshProfile } = useAuth();
 
   // Tab Management
-  const [activeTab, setActiveTab] = useState<"activate" | "requests" | "trial">(
-    "requests",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "activate" | "requests" | "trial" | "feedback"
+  >("requests");
 
   // Single Activation Inputs
   const [targetUserId, setTargetUserId] = useState("");
@@ -43,6 +46,11 @@ export default function AdminPanel() {
   const [actionLoading, setActionLoading] = useState<
     Record<string, "approve" | "reject" | null>
   >({});
+
+  // Real-time Feedbacks state
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbacksError, setFeedbacksError] = useState<string | null>(null);
+  const [seenLoading, setSeenLoading] = useState<Record<string, boolean>>({});
 
   // Set the current user ID as initial query value for ease of testing
   useEffect(() => {
@@ -78,7 +86,7 @@ export default function AdminPanel() {
       currentUser.email === "naranbadrakh1013@gmail.com";
     if (!isCurrentUserAdmin) return;
 
-    const unsubscribe = subscribeToPendingPayments(
+    const unsubscribePayments = subscribeToPendingPayments(
       (data) => {
         setRequests(data);
         setRequestsError(null);
@@ -89,8 +97,20 @@ export default function AdminPanel() {
       },
     );
 
+    const unsubscribeFeedbacks = subscribeToFeedbacks(
+      (data) => {
+        setFeedbacks(data);
+        setFeedbacksError(null);
+      },
+      (err) => {
+        console.error("Real-time feedbacks sub error:", err);
+        setFeedbacksError(err.message || String(err));
+      },
+    );
+
     return () => {
-      unsubscribe();
+      unsubscribePayments();
+      unsubscribeFeedbacks();
     };
   }, [isOpen]);
 
@@ -371,11 +391,24 @@ export default function AdminPanel() {
     }
   };
 
+  const handleMarkSeen = async (feedbackId: string) => {
+    setSeenLoading((prev) => ({ ...prev, [feedbackId]: true }));
+    try {
+      await markFeedbackSeen(feedbackId);
+      toast.success("Харсан төлөвт орууллаа. ✅");
+    } catch (err) {
+      console.error("Error marking feedback seen:", err);
+      toast.error("Үйлдэл амжилтгүй боллоо.");
+    } finally {
+      setSeenLoading((prev) => ({ ...prev, [feedbackId]: false }));
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-[9999] ${activeTab === "requests" ? "max-w-md" : "max-w-sm"} w-full transition-all duration-300 animate-in fade-in slide-in-from-bottom-5`}
+      className={`fixed bottom-4 right-4 z-[9999] ${activeTab === "requests" || activeTab === "feedback" ? "max-w-md" : "max-w-sm"} w-full transition-all duration-300 animate-in fade-in slide-in-from-bottom-5`}
       id="admin-panel-component"
     >
       <div className="bg-slate-950 text-white border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur-md relative space-y-4">
@@ -395,7 +428,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-900 text-[11px] font-bold">
+        <div className="flex border-b border-slate-900 text-[10px] uppercase font-bold">
           <button
             onClick={() => setActiveTab("activate")}
             className={`flex-1 pb-2 border-b-2 transition-colors ${
@@ -414,7 +447,7 @@ export default function AdminPanel() {
                 : "border-transparent text-slate-400 hover:text-white"
             }`}
           >
-            Хүсэлтүүд
+            Хүсэлт
             {requests.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
                 {requests.length}
@@ -430,6 +463,21 @@ export default function AdminPanel() {
             }`}
           >
             Туршилт
+          </button>
+          <button
+            onClick={() => setActiveTab("feedback")}
+            className={`flex-1 pb-2 border-b-2 relative transition-colors ${
+              activeTab === "feedback"
+                ? "border-amber-500 text-amber-500"
+                : "border-transparent text-slate-400 hover:text-white"
+            }`}
+          >
+            Санал
+            {feedbacks.filter((f) => !f.seen).length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
+                {feedbacks.filter((f) => !f.seen).length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -609,6 +657,112 @@ export default function AdminPanel() {
                 <span>Give Trial (1d)</span>
               </button>
             </form>
+          )}
+
+          {activeTab === "feedback" && (
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {feedbacksError && (
+                <div className="text-[11px] text-red-400 font-mono bg-red-500/10 border border-red-500/20 p-2 rounded-lg">
+                  Алдаа: {feedbacksError}
+                </div>
+              )}
+
+              {feedbacks.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-xs flex flex-col items-center justify-center gap-1">
+                  <Mail className="w-6 h-6 text-slate-600 mb-1" />
+                  <span>Санал хүсэлт одоогоор байхгүй байна.</span>
+                </div>
+              ) : (
+                feedbacks.map((item) => {
+                  const isUnseen = !item.seen;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`border rounded-2xl p-4 space-y-3 transition-all duration-200 ${
+                        isUnseen
+                          ? "bg-amber-500/10 border-amber-500/30 text-white shadow-inner"
+                          : "bg-slate-900/60 border-slate-800/80 text-slate-400 opacity-60"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          {/* Stars */}
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-3.5 h-3.5 ${
+                                  star <= item.rating
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "text-slate-600 fill-transparent"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          {/* User Email */}
+                          <div className="text-[11px] font-medium flex items-center gap-1 mt-1 text-slate-300">
+                            <Mail className="w-3 h-3 text-slate-500" />
+                            <span
+                              className="truncate max-w-[180px]"
+                              title={item.email}
+                            >
+                              {item.email}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Timestamp */}
+                        <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-500" />
+                          <span>
+                            {item.createdAt
+                              ? new Date(item.createdAt).toLocaleString(
+                                  "mn-MN",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    month: "2-digit",
+                                    day: "2-digit",
+                                  },
+                                )
+                              : "Огноогүй"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Feedback Message */}
+                      <p
+                        className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                          isUnseen
+                            ? "text-slate-200 font-medium"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {item.message}
+                      </p>
+
+                      {/* Mark As Seen Button if unseen */}
+                      {isUnseen && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            onClick={() => handleMarkSeen(item.id)}
+                            disabled={seenLoading[item.id]}
+                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all disabled:opacity-50"
+                          >
+                            {seenLoading[item.id] ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-slate-950" />
+                            ) : (
+                              <Check className="w-3 h-3 text-slate-950" />
+                            )}
+                            <span>Харсан</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
         </div>
 

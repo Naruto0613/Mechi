@@ -929,3 +929,115 @@ export const subscribeToPendingPayments = (
     return () => {};
   }
 };
+
+export const saveFeedback = async (
+  userId: string,
+  email: string,
+  message: string,
+  rating: number,
+) => {
+  const feedbackRef = doc(collection(db, "feedbacks"));
+  await setDoc(feedbackRef, {
+    userId,
+    email,
+    message,
+    rating,
+    createdAt: new Date(),
+    seen: false,
+  });
+};
+
+export const subscribeToFeedbacks = (
+  onData: (feedbacks: any[]) => void,
+  onError: (error: any) => void,
+) => {
+  const feedbacksCol = collection(db, "feedbacks");
+
+  // Query feedbacks ordered by createdAt descending
+  const qWithOrder = query(feedbacksCol, orderBy("createdAt", "desc"));
+
+  const parseDocToFeedback = (document: any) => {
+    const data = document.data();
+    let createdStr = new Date().toISOString();
+    if (data.createdAt) {
+      if (typeof data.createdAt.toDate === "function") {
+        createdStr = data.createdAt.toDate().toISOString();
+      } else if (data.createdAt instanceof Date) {
+        createdStr = data.createdAt.toISOString();
+      } else {
+        createdStr = new Date(data.createdAt).toISOString();
+      }
+    }
+    return {
+      id: document.id,
+      userId: data.userId || "",
+      email: data.email || "",
+      message: data.message || "",
+      rating: data.rating || 5,
+      createdAt: createdStr,
+      seen: data.seen || false,
+    };
+  };
+
+  try {
+    const unsubscribe = onSnapshot(
+      qWithOrder,
+      (snapshot) => {
+        const list: any[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push(parseDocToFeedback(docSnap));
+        });
+        onData(list);
+      },
+      (error) => {
+        console.warn(
+          "Query feedbacks with orderBy failed, falling back to unordered client-side sorted query:",
+          error,
+        );
+
+        // Fallback without ordering in case index is building
+        const qFallback = query(feedbacksCol);
+        const unsubFallback = onSnapshot(
+          qFallback,
+          (snapshot) => {
+            const list: any[] = [];
+            snapshot.forEach((docSnap) => {
+              list.push(parseDocToFeedback(docSnap));
+            });
+            list.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            );
+            onData(list);
+          },
+          (fallbackErr) => {
+            console.error(
+              "All onSnapshot subscription queries failed for feedbacks:",
+              fallbackErr,
+            );
+            onError(fallbackErr);
+          },
+        );
+        (unsubscribe as any).fallback = unsubFallback;
+      },
+    );
+
+    return () => {
+      if ((unsubscribe as any).fallback) {
+        (unsubscribe as any).fallback();
+      }
+      unsubscribe();
+    };
+  } catch (err) {
+    console.error("Failed to set up onSnapshot in subscribeToFeedbacks:", err);
+    onError(err);
+    return () => {};
+  }
+};
+
+export const markFeedbackSeen = async (feedbackId: string) => {
+  if (!feedbackId) return;
+  const feedbackDocRef = doc(db, "feedbacks", feedbackId);
+  await setDoc(feedbackDocRef, { seen: true }, { merge: true });
+};

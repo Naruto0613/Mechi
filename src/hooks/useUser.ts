@@ -1,11 +1,11 @@
-import { useAuth } from '../context/AuthContext';
-import { saveUserProfile } from '../lib/db';
+import { useAuth } from "../context/AuthContext";
+import { saveUserProfile } from "../lib/db";
 
 export function useUser() {
   const { profile, refreshProfile } = useAuth();
-  
-  const userId = profile?.uid || '';
-  const email = profile?.email || '';
+
+  const userId = profile?.uid || "";
+  const email = profile?.email || "";
   const expiryDate = profile?.paidUntil ? Date.parse(profile.paidUntil) : null;
   const isExpired = expiryDate ? Date.now() > expiryDate : false;
   const isActive = (profile?.isPaid || false) && !isExpired;

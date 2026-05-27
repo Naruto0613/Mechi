@@ -30,6 +30,7 @@ service cloud.firestore {
     // --- User Profiles ---
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) 
         && request.resource.data.uid == userId;
       allow update: if (isOwner(userId)
@@ -60,6 +61,13 @@ service cloud.firestore {
 
     match /usedTrialDevices/{deviceId} {
       allow get, create: if isSignedIn();
+    }
+
+    // --- Feedbacks ---
+    match /feedbacks/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && (request.auth.uid == "KlSSLp05vSdk5JtJb4Xr0OVhkbH2" || isAdmin());
+      allow delete: if false;
     }
   }
 }
