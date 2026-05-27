@@ -1,242 +1,182 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Headset, Volume2, CheckCircle2, RotateCcw, Play, Pause } from 'lucide-react';
-import { addXp, updateHSKProgress } from '../lib/db';
-import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
+import { ChevronLeft, CheckCircle2, Headphones, Play, Award, ArrowRight } from 'lucide-react';
+import { getCompletedListeningLessons } from '../lib/db';
+import listeningData from '../data/listening.json';
 
 interface ListeningExercise {
-  chineseText: string;
-  pinyin: string;
-  translation: string;
-  questions: {
-    question: string;
-    options: string[];
-    correctAnswer: number;
-  }[];
+  id: string;
+  title: string;
+  difficulty: string;
 }
 
-import lessonsData from '../data/lessons.json';
-
 export default function ListeningPage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
-  const [exercise, setExercise] = useState<ListeningExercise | null>(null);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [complete, setComplete] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showScript, setShowScript] = useState(false);
 
-  const fetchExercise = () => {
-    setLoading(true);
-    const levelKey = `HSK${profile?.selectedLevel || 1}`;
-    const levelExercises = (lessonsData as any)[levelKey]?.listening || [];
-    const randomEx = levelExercises[Math.floor(Math.random() * levelExercises.length)];
-    
-    setExercise(randomEx || null);
-    setComplete(false);
-    setCurrentQuestion(0);
-    setCorrectCount(0);
-    setSelected(null);
-    setShowScript(false);
-    setLoading(false);
-  };
+  const levelKey = `HSK${profile?.selectedLevel || 1}` as keyof typeof listeningData;
+  const currentExercises = (listeningData[levelKey] || []) as ListeningExercise[];
 
   useEffect(() => {
-    if (profile) fetchExercise();
-  }, [profile?.selectedLevel]);
-
-  const speak = () => {
-    if (!exercise) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(exercise.chineseText);
-    utterance.lang = 'zh-CN';
-    utterance.onstart = () => setIsPlaying(true);
-    utterance.onend = () => setIsPlaying(false);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleAnswer = (idx: number) => {
-    if (selected !== null) return;
-    setSelected(idx);
-    if (idx === exercise?.questions[currentQuestion].correctAnswer) {
-      setCorrectCount(prev => prev + 1);
+    if (profile?.uid) {
+      setLoading(true);
+      getCompletedListeningLessons(profile.uid)
+        .then((ids) => {
+          setCompletedIds(ids);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
-  };
+  }, [profile?.uid, profile?.selectedLevel]);
 
-  const nextQuestion = async () => {
-    if (currentQuestion < (exercise?.questions.length || 0) - 1) {
-      setCurrentQuestion(prev => prev + 1);
-      setSelected(null);
-    } else {
-      setComplete(true);
-      if (correctCount + (selected === exercise?.questions[currentQuestion].correctAnswer ? 1 : 0) === exercise?.questions.length) {
-        if (profile) {
-          await addXp(profile.uid, 15);
-          await updateHSKProgress(profile.uid, profile.selectedLevel, {
-            listeningCompleted: 100
-          });
-          toast.success('+15 XP олсон!', { icon: '💰' });
-          refreshProfile();
-        }
-      }
-    }
-  };
+  // Calculate completed count for the current HSK level
+  const completedForLevel = currentExercises.filter(ex => completedIds.includes(ex.id)).length;
+  const totalForLevel = currentExercises.length || 10;
+  const progressPercent = Math.min(100, Math.round((completedForLevel / totalForLevel) * 100));
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center gap-6">
+      <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center gap-6">
         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
         <div className="space-y-2">
-          <h2 className="text-2xl font-black text-ink">Сонсгол бэлдэж байна...</h2>
-          <p className="text-ink/60 font-medium">Gemini AI танд зориулж сонсголын дасгал боловсруулж байна.</p>
+          <h2 className="text-xl font-black text-ink">Ачааллаж байна...</h2>
+          <p className="text-ink/60 font-medium">Сонсголын хичээлүүдийг бэлдэж байна.</p>
         </div>
       </div>
     );
   }
 
-  if (!exercise) return null;
-
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      <div className="flex items-center justify-between">
-        <button onClick={() => navigate('/dashboard')} className="flex items-center gap-3 text-sm font-black text-muted hover:text-blue-500 transition-colors uppercase tracking-widest group">
-          <div className="w-10 h-10 rounded-full bg-white border border-border-sub flex items-center justify-center group-hover:border-blue-500">
+    <div className="max-w-4xl mx-auto space-y-8 pb-12" id="listening-page-container">
+      {/* Back Button and Title Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <button 
+          onClick={() => navigate('/dashboard')} 
+          className="flex items-center gap-3 text-sm font-black text-muted hover:text-blue-500 transition-colors uppercase tracking-widest group"
+          id="listening-back-btn"
+        >
+          <div className="w-10 h-10 rounded-full bg-white border border-border-sub flex items-center justify-center group-hover:border-blue-500 transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </div>
           Буцах
         </button>
         <div className="px-6 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest border border-blue-100">
-          Сонсгол • HSK {profile?.selectedLevel}
+          Сонсгол • HSK {profile?.selectedLevel || 1}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white p-5 sm:p-12 rounded-[2rem] sm:rounded-[40px] border border-border-sub shadow-xl flex flex-col items-center text-center gap-6 sm:gap-8 relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-2 bg-blue-100">
-              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: isPlaying ? '100%' : '0%' }} />
+      {/* Progress Header Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-3xl border border-border-sub p-6 sm:p-10 shadow-sm relative overflow-hidden"
+        id="listening-progress-header"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="space-y-6 relative z-10">
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-black text-ink tracking-tight">
+              HSK {profile?.selectedLevel || 1} — Сонсголын дасгалууд
+            </h1>
+            <p className="text-ink/60 font-semibold text-sm sm:text-base leading-relaxed">
+              Хятад хэлээр ярилцах харилцааны сонсголыг хөгжүүлэх сонирхолтой {totalForLevel} дасгал. Яриаг сонсож асуултанд зөв хариулан оноогоо ахиулаарай.
+            </p>
+          </div>
+
+          <div className="space-y-3 bg-bg-soft p-4 sm:p-6 rounded-2xl border border-border-sub">
+            <div className="flex justify-between items-center text-xs sm:text-sm font-black text-ink/70">
+              <span className="flex items-center gap-2 uppercase tracking-wider">
+                <Award className="w-4 h-4 text-blue-500" /> Таны сонсголын амжилт
+              </span>
+              <span>{completedForLevel} / {totalForLevel} дуусгасан ({progressPercent}%)</span>
             </div>
             
-            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-blue-500 text-white animate-pulse' : 'bg-blue-50 text-blue-500'}`}>
-              <Headset className="w-10 h-10 sm:w-12 sm:h-12" />
+            <div className="w-full h-3 bg-white border border-border-sub rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                className="h-full bg-blue-500" 
+              />
             </div>
+          </div>
+        </div>
+      </motion.div>
 
-            <div className="space-y-3 sm:space-y-4 text-center">
-              <div className="p-3 sm:p-4 bg-bg-soft rounded-2xl border border-border-sub h-20 sm:h-24 flex items-center justify-center">
-                <p className="text-lg sm:text-xl font-bold text-ink/40 italic">
-                  {isPlaying ? 'Сонсож байна...' : 'Сонсоход бэлэн'}
-                </p>
-              </div>
-              <p className="text-ink/60 font-semibold text-xs sm:text-base">Дээрх товчийг дарж текстийг сонсоод асуултад хариулна уу.</p>
-            </div>
+      {/* Exercises Cards List */}
+      <div className="grid md:grid-cols-2 gap-4" id="listening-exercises-list">
+        {currentExercises.map((exercise, index) => {
+          const isCompleted = completedIds.includes(exercise.id);
+          
+          let difficultyColor = "bg-green-50 text-green-700 border-green-100";
+          if (exercise.difficulty === "Дунд") {
+            difficultyColor = "bg-amber-50 text-amber-700 border-amber-100";
+          } else if (exercise.difficulty === "Хэцүү") {
+            difficultyColor = "bg-rose-50 text-rose-700 border-rose-100";
+          }
 
-            <button 
-              onClick={speak}
-              className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 ${isPlaying ? 'bg-white text-blue-500 border-2 border-blue-500' : 'bg-blue-500 text-white'}`}
+          return (
+            <motion.div
+              key={exercise.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className={`bg-white rounded-2xl border p-5 flex flex-col justify-between gap-4 transition-all ${
+                isCompleted 
+                  ? 'border-blue-200 shadow-sm shadow-blue-50 bg-blue-50/5' 
+                  : 'border-border-sub hover:border-slate-300'
+              }`}
+              id={`listening-card-${exercise.id}`}
             >
-              {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
-            </button>
-
-            <button 
-              onClick={() => setShowScript(!showScript)}
-              className="text-xs font-black text-blue-500 uppercase tracking-widest hover:underline"
-            >
-              {showScript ? 'Текстийг нуух' : 'Текстийг харах'}
-            </button>
-
-            <AnimatePresence>
-              {showScript && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden w-full"
-                >
-                  <div className="p-4 sm:p-6 bg-blue-50 rounded-2xl sm:rounded-3xl space-y-2 text-left">
-                    <p className="text-lg sm:text-xl font-bold text-ink">{exercise.chineseText}</p>
-                    <p className="text-xs sm:text-sm font-medium text-blue-600 italic">{exercise.pinyin}</p>
-                    <p className="text-xs sm:text-sm text-ink/60">{exercise.translation}</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-mono font-bold ${
+                      isCompleted 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'bg-bg-soft text-ink/50'
+                    }`}>
+                      {String(index + 1).padStart(2, '0')}
+                    </div>
+                    {isCompleted && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-200">
+                        <CheckCircle2 className="w-3 h-3" /> Дууссан
+                      </span>
+                    )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </div>
+                  
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${difficultyColor}`}>
+                    {exercise.difficulty}
+                  </span>
+                </div>
 
-        <div className="lg:col-span-3 space-y-8">
-          {!complete ? (
-            <motion.div 
-              key={currentQuestion}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-white p-5 sm:p-12 rounded-[2rem] sm:rounded-[40px] border border-border-sub shadow-xl space-y-6 sm:space-y-8"
-            >
-              <div className="flex justify-between items-center text-xs sm:text-sm">
-                <span className="text-blue-500 font-black uppercase tracking-widest text-xs sm:text-sm">Асуулт {currentQuestion + 1} / {exercise.questions.length}</span>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-ink flex items-center gap-2">
+                    <Headphones className="w-4 h-4 text-blue-500 shrink-0" />
+                    {exercise.title}
+                  </h3>
+                </div>
               </div>
-              <h2 className="text-xl sm:text-3xl font-black text-ink leading-tight">{exercise.questions[currentQuestion].question}</h2>
-              <div className="grid gap-3 sm:gap-4">
-                {exercise.questions[currentQuestion].options.map((opt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleAnswer(i)}
-                    className={`p-4 sm:p-6 rounded-2xl sm:rounded-3xl border-2 text-left font-bold transition-all text-sm sm:text-base ${
-                      selected === i 
-                        ? (i === exercise.questions[currentQuestion].correctAnswer ? 'bg-blue-500 border-blue-500 text-white' : 'bg-red-500 border-red-500 text-white')
-                        : (selected !== null && i === exercise.questions[currentQuestion].correctAnswer ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-bg-soft border-border-sub hover:border-blue-200 hover:bg-white')
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              {selected !== null && (
-                <button 
-                  onClick={nextQuestion}
-                  className="w-full py-4 sm:py-5 bg-ink text-white rounded-2xl font-black text-sm sm:text-lg mt-6 sm:mt-8 flex items-center justify-center gap-2 sm:gap-3 active:scale-95 transition-all"
-                >
-                  Дараагийнх
-                </button>
-              )}
+
+              {/* Action Button */}
+              <button
+                onClick={() => navigate(`/listening/${exercise.id}`)}
+                className={`w-full py-3 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all ${
+                  isCompleted
+                    ? 'bg-bg-soft text-ink/70 border border-border-sub hover:bg-slate-150'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md shadow-blue-100 hover:scale-[1.01] active:scale-95'
+                }`}
+              >
+                {isCompleted ? 'Дахин сонсох' : 'Сонсох'}
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </motion.div>
-          ) : (
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="bg-white p-6 sm:p-16 rounded-[2rem] sm:rounded-[48px] border border-border-sub shadow-2xl text-center space-y-6 sm:space-y-10"
-            >
-              <div className="w-20 h-20 sm:w-32 sm:h-32 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-500">
-                <CheckCircle2 className="w-10 h-10 sm:w-16 sm:h-16" />
-              </div>
-              <h2 className="text-2xl sm:text-4xl font-black text-ink tracking-tight">Сайн байна!</h2>
-              <p className="text-base sm:text-xl text-muted font-semibold">Сонсголын дасгалыг амжилттай дуусгалаа.</p>
-              
-              <div className="flex flex-col gap-3">
-                <button 
-                  onClick={() => navigate('/dashboard')}
-                  className="w-full py-4 bg-blue-500 text-white rounded-2xl font-black text-sm sm:text-lg shadow-lg"
-                >
-                  Дашборд руу буцах
-                </button>
-                <button 
-                  onClick={fetchExercise}
-                  className="w-full py-4 bg-white border border-border-sub rounded-2xl font-black text-sm sm:text-lg text-ink hover:bg-bg-soft flex items-center justify-center gap-2 sm:gap-3 transition-all"
-                >
-                  Дахин оролдох <RotateCcw className="w-5 h-5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -44,6 +44,16 @@
         "lastSeenAt": { "type": "string", "format": "date-time" }
       }
     },
+    "LessonProgress": {
+      "title": "Lesson Progress Status",
+      "description": "Tracking completion for grammar, listening, or reading lessons",
+      "type": "object",
+      "properties": {
+        "completed": { "type": "boolean" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["completed", "completedAt"]
+    },
     "LeaderboardEntry": {
       "title": "Weekly Leaderboard Entry",
       "description": "XP earned in the current week",
@@ -90,6 +100,18 @@
     "users/{uid}/mastery/{wordId}": {
       "schema": "WordMastery",
       "description": "Individual word mastery data"
+    },
+    "users/{uid}/grammarProgress/{lessonId}": {
+      "schema": "LessonProgress",
+      "description": "Progress/completion records for grammar lessons"
+    },
+    "users/{uid}/listeningProgress/{lessonId}": {
+      "schema": "LessonProgress",
+      "description": "Progress/completion records for listening lessons"
+    },
+    "users/{uid}/readingProgress/{lessonId}": {
+      "schema": "LessonProgress",
+      "description": "Progress/completion records for reading lessons"
     },
     "leaderboards/weekly/users/{uid}": {
       "schema": "LeaderboardEntry",

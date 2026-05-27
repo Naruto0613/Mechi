@@ -4,7 +4,7 @@ export enum HSKLevel {
   L3 = 3,
   L4 = 4,
   L5 = 5,
-  L6 = 6,
+  L6 = 6
 }
 
 export interface UserProfile {
@@ -35,7 +35,7 @@ export interface HSKProgress {
 
 export interface WordMastery {
   wordId: string;
-  status: "new" | "learning" | "mastered";
+  status: 'new' | 'learning' | 'mastered';
   correctCount: number;
   wrongCount: number;
   lastSeenAt: any;
@@ -64,7 +64,7 @@ export interface VocabWord {
 
 export interface QuizQuestion {
   id: string;
-  type: "multiple-choice" | "listening";
+  type: 'multiple-choice' | 'listening';
   question: string;
   options: string[];
   correctIndex: number;
@@ -80,12 +80,12 @@ export interface Lesson {
 }
 
 export enum OperationType {
-  CREATE = "create",
-  UPDATE = "update",
-  DELETE = "delete",
-  LIST = "list",
-  GET = "get",
-  WRITE = "write",
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
 }
 
 export interface FirestoreErrorInfo {
@@ -97,7 +97,7 @@ export interface FirestoreErrorInfo {
     email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
-  };
+  }
 }
 
 export interface DailyTip {

@@ -44,6 +44,15 @@ service cloud.firestore {
       match /mastery/{wordId} {
         allow read, write: if isOwner(userId) && isValidId(wordId);
       }
+      match /grammarProgress/{lessonId} {
+        allow read, write: if isOwner(userId) && isValidId(lessonId);
+      }
+      match /listeningProgress/{lessonId} {
+        allow read, write: if isOwner(userId) && isValidId(lessonId);
+      }
+      match /readingProgress/{lessonId} {
+        allow read, write: if isOwner(userId) && isValidId(lessonId);
+      }
     }
 
     // --- Leaderboards ---
