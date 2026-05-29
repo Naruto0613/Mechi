@@ -8,10 +8,7 @@
         "uid": { "type": "string" },
         "email": { "type": "string" },
         "displayName": { "type": "string" },
-        "selectedLevel": {
-          "type": "integer",
-          "description": "Current HSK level (1-6)"
-        },
+        "selectedLevel": { "type": "integer", "description": "Current HSK level (1-6)" },
         "totalXp": { "type": "integer" },
         "currentStreak": { "type": "integer" },
         "lastStudiedAt": { "type": "string", "format": "date-time" },
