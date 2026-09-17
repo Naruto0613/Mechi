@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useUser } from '../../hooks/useUser';
-import { User as UserIcon, LogOut, CreditCard } from 'lucide-react';
+import { User as UserIcon, LogOut, CreditCard, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import mechiLogo from '../../assets/images/mechi_logo_1779261115033.png';
 
@@ -42,6 +42,21 @@ export default function Header() {
               Mechi
             </span>
           </Link>
+
+          {!isGuest && (
+            <Link 
+              to="/dictionary" 
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                location.pathname === '/dictionary'
+                  ? 'bg-primary-orange text-white shadow-sm'
+                  : 'text-ink/70 hover:text-ink hover:bg-bg-soft'
+              }`}
+              title="Хятад-Монгол толь бичиг ба ханз зуралт"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Толь бичиг</span>
+            </Link>
+          )}
 
           {!isGuest && !hasPaid && (
             <Link 

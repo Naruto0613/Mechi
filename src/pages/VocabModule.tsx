@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import vocabData from '../data/hsk.json';
-import { Volume2, ChevronLeft, ChevronRight, Heart, RotateCcw, Book, Brain } from 'lucide-react';
+import { Volume2, ChevronLeft, ChevronRight, Heart, RotateCcw, Book, Brain, PenTool } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { VocabWord, WordMastery } from '../types';
-import { updateWordMastery, updateStudyStreak, updateHSKProgress, getWordMastery } from '../lib/db';
+import { updateWordMastery, updateStudyStreak, updateHSKProgress, getWordMastery, getVocabPosition, saveVocabPosition } from '../lib/db';
 import toast from 'react-hot-toast';
+import StrokeOrderModal from '../components/character/StrokeOrderModal';
 
 export default function VocabModule() {
   const { profile, refreshProfile } = useAuth();
@@ -17,6 +18,9 @@ export default function VocabModule() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [masteryData, setMasteryData] = useState<Record<string, WordMastery>>({});
   const [loadingMastery, setLoadingMastery] = useState(false);
+  const [positionLoaded, setPositionLoaded] = useState(false);
+  const [jumpVal, setJumpVal] = useState('');
+  const [activeStrokeHanzi, setActiveStrokeHanzi] = useState<string | null>(null);
 
   // Initialize streak on load
   useEffect(() => {
@@ -98,10 +102,73 @@ export default function VocabModule() {
     return allWordsInCategory.filter(w => w.category === selectedCategory);
   }, [allWordsInCategory, selectedCategory]);
 
+  // Reset translation when word index or mode changes
   useEffect(() => {
-    setIndex(0);
     setShowTranslation(false);
-  }, [filteredWords, mode]);
+  }, [index, mode]);
+
+  // Load saved position once when selectedCategory is set
+  useEffect(() => {
+    async function loadSavedPos() {
+      if (!profile?.uid || !profile?.selectedLevel || !selectedCategory) return;
+      try {
+        const savedPos = await getVocabPosition(profile.uid, profile.selectedLevel);
+        if (savedPos > 0) {
+          const savedIndex = savedPos - 1;
+          if (savedIndex >= 0 && savedIndex < filteredWords.length) {
+            setIndex(savedIndex);
+            setPositionLoaded(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error loading position:', err);
+      }
+      setIndex(0);
+      setPositionLoaded(true);
+    }
+
+    if (selectedCategory) {
+      loadSavedPos();
+    } else {
+      setPositionLoaded(false);
+    }
+  }, [selectedCategory, profile?.selectedLevel, profile?.uid, filteredWords.length]);
+
+  // Save position to Firestore whenever index changes and position is ready
+  useEffect(() => {
+    if (profile?.uid && profile?.selectedLevel && selectedCategory && positionLoaded) {
+      saveVocabPosition(profile.uid, profile.selectedLevel, index + 1);
+    }
+  }, [index, profile?.uid, profile?.selectedLevel, selectedCategory, positionLoaded]);
+
+  const handleJump = (amount: number) => {
+    let newIndex = index + amount;
+    if (newIndex < 0) {
+      newIndex = 0;
+    }
+    if (newIndex >= filteredWords.length) {
+      newIndex = filteredWords.length - 1;
+    }
+    setIndex(newIndex);
+    setShowTranslation(false);
+  };
+
+  const handleJumpSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const pageNum = parseInt(jumpVal, 10);
+    if (isNaN(pageNum)) {
+      toast.error("Зөвхөн тоо оруулна уу.");
+      return;
+    }
+    if (pageNum < 1 || pageNum > filteredWords.length) {
+      toast.error(`Дугаар 1-ээс ${filteredWords.length} хооронд байх ёстой.`);
+      return;
+    }
+    setIndex(pageNum - 1);
+    setShowTranslation(false);
+    setJumpVal('');
+  };
 
   const handleNext = () => {
     setIndex((prev) => (prev + 1) % filteredWords.length);
@@ -116,6 +183,7 @@ export default function VocabModule() {
   const playAudio = (text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
+    utterance.rate = 0.65;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -283,6 +351,109 @@ export default function VocabModule() {
 
       {mode === 'flashcard' ? (
         <div className="space-y-10">
+          {/* Navigation Bar */}
+          <div className="bg-white p-4 sm:p-6 rounded-3xl border border-border-sub shadow-sm flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              {/* Left Group */}
+              <div className="flex items-center gap-1.5 w-full md:w-auto justify-center md:justify-start">
+                <button
+                  type="button"
+                  id="vocab-minus-100"
+                  onClick={() => handleJump(-100)}
+                  disabled={index === 0}
+                  className="px-3.5 py-2 text-xs font-black rounded-xl border border-border-sub text-muted hover:border-primary-orange hover:text-primary-orange disabled:opacity-30 disabled:hover:border-border-sub disabled:hover:text-muted disabled:cursor-not-allowed transition-all"
+                >
+                  -100
+                </button>
+                <button
+                  type="button"
+                  id="vocab-minus-10"
+                  onClick={() => handleJump(-10)}
+                  disabled={index === 0}
+                  className="px-3.5 py-2 text-xs font-black rounded-xl border border-border-sub text-muted hover:border-primary-orange hover:text-primary-orange disabled:opacity-30 disabled:hover:border-border-sub disabled:hover:text-muted disabled:cursor-not-allowed transition-all"
+                >
+                  -10
+                </button>
+                <button
+                  type="button"
+                  id="vocab-minus-1"
+                  onClick={() => handleJump(-1)}
+                  disabled={index === 0}
+                  className="px-4 py-2 text-xs font-black rounded-xl border border-border-sub text-muted hover:border-primary-orange hover:text-primary-orange disabled:opacity-30 disabled:hover:border-border-sub disabled:hover:text-muted disabled:cursor-not-allowed transition-all"
+                >
+                  -1
+                </button>
+              </div>
+
+              {/* Middle Group */}
+              <div className="flex items-center gap-3 justify-center">
+                <span className="text-sm sm:text-base font-black text-ink select-none bg-bg-soft px-4 py-1.5 rounded-2xl border border-border-sub">
+                  {index + 1} / {filteredWords.length}
+                </span>
+                
+                {/* Jump input */}
+                <form onSubmit={handleJumpSubmit} className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={1}
+                    max={filteredWords.length}
+                    value={jumpVal}
+                    id="vocab-jump-input"
+                    onChange={(e) => setJumpVal(e.target.value)}
+                    placeholder="Үсрэх"
+                    className="w-16 h-9 px-2 text-center text-xs font-black border border-border-sub focus:border-primary-orange focus:outline-none rounded-xl bg-bg-soft text-ink"
+                  />
+                  <button
+                    type="submit"
+                    id="vocab-jump-submit"
+                    className="h-9 px-3 text-[10px] font-black uppercase tracking-wider bg-ink text-white rounded-xl hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    Орох
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Group */}
+              <div className="flex items-center gap-1.5 w-full md:w-auto justify-center md:justify-end">
+                <button
+                  type="button"
+                  id="vocab-plus-1"
+                  onClick={() => handleJump(1)}
+                  disabled={index === filteredWords.length - 1}
+                  className="px-4 py-2 text-xs font-black rounded-xl border border-border-sub text-muted hover:border-primary-orange hover:text-primary-orange disabled:opacity-30 disabled:hover:border-border-sub disabled:hover:text-muted disabled:cursor-not-allowed transition-all"
+                >
+                  +1
+                </button>
+                <button
+                  type="button"
+                  id="vocab-plus-10"
+                  onClick={() => handleJump(10)}
+                  disabled={index === filteredWords.length - 1}
+                  className="px-3.5 py-2 text-xs font-black rounded-xl border border-border-sub text-muted hover:border-primary-orange hover:text-primary-orange disabled:opacity-30 disabled:hover:border-border-sub disabled:hover:text-muted disabled:cursor-not-allowed transition-all"
+                >
+                  +10
+                </button>
+                <button
+                  type="button"
+                  id="vocab-plus-100"
+                  onClick={() => handleJump(100)}
+                  disabled={index === filteredWords.length - 1}
+                  className="px-3.5 py-2 text-xs font-black rounded-xl border border-border-sub text-muted hover:border-primary-orange hover:text-primary-orange disabled:opacity-30 disabled:hover:border-border-sub disabled:hover:text-muted disabled:cursor-not-allowed transition-all"
+                >
+                  +100
+                </button>
+              </div>
+            </div>
+
+            {/* Visual Progress Bar (orange: #F97316) */}
+            <div className="w-full bg-bg-soft h-2 rounded-full overflow-hidden select-none">
+              <div
+                className="h-full bg-[#F97316] transition-all duration-300 rounded-full"
+                style={{ width: `${((index + 1) / filteredWords.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
           <div className="relative aspect-[4/3] md:aspect-[2/1] cursor-pointer group" onClick={() => setShowTranslation(!showTranslation)}>
             <AnimatePresence mode="wait">
               <motion.div
@@ -290,7 +461,7 @@ export default function VocabModule() {
                 initial={{ rotateY: 90, opacity: 0 }}
                 animate={{ rotateY: 0, opacity: 1 }}
                 exit={{ rotateY: -90, opacity: 0 }}
-                className="w-full h-full bg-white rounded-[40px] border-2 border-border-sub shadow-xl flex flex-col items-center justify-center p-12 text-center"
+                className="w-full h-full bg-white rounded-[40px] border-2 border-border-sub shadow-xl flex flex-col items-center justify-center p-4 sm:p-12 text-center"
               >
                 <div className="absolute top-0 left-0 w-full h-2 bg-bg-orange/20">
                   <div className="h-full bg-primary-orange transition-all" style={{ width: `${((index + 1) / filteredWords.length) * 100}%` }} />
@@ -300,23 +471,52 @@ export default function VocabModule() {
 
                 {!showTranslation ? (
                   <>
-                    <h2 className="text-9xl font-black text-ink mb-2 tracking-tight">{filteredWords[index].character}</h2>
-                    <p className="text-3xl font-bold text-primary-orange">{filteredWords[index].pinyin}</p>
+                    <h2 className={`font-black text-ink mb-2 tracking-tight ${
+                      filteredWords[index].character.length === 1
+                        ? 'text-7xl sm:text-9xl'
+                        : filteredWords[index].character.length === 2
+                          ? 'text-5xl sm:text-8xl'
+                          : filteredWords[index].character.length === 3
+                            ? 'text-4xl sm:text-7xl'
+                            : 'text-3xl sm:text-6xl'
+                    }`}>
+                      {filteredWords[index].character}
+                    </h2>
+                    <p className="text-xl sm:text-3xl font-bold text-primary-orange">{filteredWords[index].pinyin}</p>
                   </>
                 ) : (
-                  <div className="space-y-6">
-                    <h3 className="text-6xl font-black text-ink">{filteredWords[index].character}</h3>
-                    <h2 className="text-5xl font-black text-ink">{filteredWords[index].translation}</h2>
+                  <div className="space-y-4 sm:space-y-6">
+                    <h3 className={`font-black text-[#F97316] ${
+                      filteredWords[index].character.length === 1
+                        ? 'text-4xl sm:text-6xl'
+                        : filteredWords[index].character.length === 2
+                          ? 'text-3xl sm:text-5xl'
+                          : 'text-2xl sm:text-4xl'
+                    }`}>
+                      {filteredWords[index].character}
+                    </h3>
+                    <h2 className="text-2xl sm:text-5xl font-black text-ink leading-tight">{filteredWords[index].translation}</h2>
                   </div>
                 )}
               </motion.div>
             </AnimatePresence>
-            <div className="absolute bottom-8 right-8">
+            <div className="absolute bottom-6 right-6 sm:bottom-8 sm:right-8 flex items-center gap-3">
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setActiveStrokeHanzi(filteredWords[index].character); 
+                }}
+                className="w-12 h-12 sm:w-16 sm:h-16 bg-white text-primary-orange border-2 border-primary-orange rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
+                title="Ханз зурах дараалал"
+              >
+                <PenTool className="w-5 h-5 sm:w-8 sm:h-8" />
+              </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); playAudio(filteredWords[index].character); }}
-                className="w-16 h-16 bg-primary-orange text-white rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110"
+                className="w-12 h-12 sm:w-16 sm:h-16 bg-primary-orange text-white rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110 active:scale-95"
+                title="Дуудлага сонсох"
               >
-                <Volume2 className="w-8 h-8" />
+                <Volume2 className="w-5 h-5 sm:w-8 sm:h-8" />
               </button>
             </div>
           </div>
@@ -339,6 +539,16 @@ export default function VocabModule() {
       ) : (
         <PracticeMode words={filteredWords} allLevelWords={rawLevelData} onResult={onPractiseResult} onRetry={() => setIndex(0)} />
       )}
+
+      {/* Stroke Order Drawing Modal */}
+      <AnimatePresence>
+        {activeStrokeHanzi && (
+          <StrokeOrderModal
+            initialHanzi={activeStrokeHanzi}
+            onClose={() => setActiveStrokeHanzi(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -422,13 +632,23 @@ function PracticeMode({ words, allLevelWords, onResult, onRetry }: { words: any[
   );
 
   return (
-    <div className="bg-white p-12 rounded-[40px] border-2 border-border-sub shadow-xl space-y-10 text-center">
+    <div className="bg-white p-4 sm:p-12 rounded-[40px] border-2 border-border-sub shadow-xl space-y-6 sm:space-y-10 text-center">
       <div className="flex justify-center gap-2">
         {[...Array(5)].map((_, i) => (
           <Heart key={i} className={`w-6 h-6 ${i < lives ? 'text-red-500 fill-red-500' : 'text-ink/10'}`} />
         ))}
       </div>
-      <h2 className="text-8xl font-black text-ink">{currentWord.character}</h2>
+      <h2 className={`font-black text-ink tracking-tight ${
+        (currentWord?.character?.length || 1) === 1
+          ? 'text-6xl sm:text-8xl'
+          : (currentWord?.character?.length || 1) === 2
+            ? 'text-4xl sm:text-7xl'
+            : (currentWord?.character?.length || 1) === 3
+              ? 'text-3xl sm:text-6xl'
+              : 'text-2xl sm:text-5xl'
+      }`}>
+        {currentWord.character}
+      </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {options.map((opt, i) => (
           <button

@@ -18,6 +18,7 @@ import ReadingLessonPage from './pages/ReadingLessonPage';
 import LessonModule from './pages/LessonModule';
 import ExamModule from './pages/ExamModule';
 import ProfilePage from './pages/ProfilePage';
+import DictionaryPage from './pages/DictionaryPage';
 import Header from './components/common/Header';
 import AuthGuard from './components/common/AuthGuard';
 import SubscriptionGuard from './components/common/SubscriptionGuard';
@@ -98,6 +99,7 @@ export default function App() {
               <Route path="/dashboard" element={<AuthGuard><SubscriptionGuard><Dashboard /></SubscriptionGuard></AuthGuard>} />
               <Route path="/leaderboard" element={<AuthGuard><SubscriptionGuard><LeaderboardPage /></SubscriptionGuard></AuthGuard>} />
               <Route path="/vocab" element={<AuthGuard><SubscriptionGuard><VocabModule /></SubscriptionGuard></AuthGuard>} />
+              <Route path="/dictionary" element={<AuthGuard><SubscriptionGuard><DictionaryPage /></SubscriptionGuard></AuthGuard>} />
               <Route path="/grammar" element={<AuthGuard><SubscriptionGuard><GrammarPage /></SubscriptionGuard></AuthGuard>} />
               <Route path="/grammar/:id" element={<AuthGuard><SubscriptionGuard><GrammarLessonPage /></SubscriptionGuard></AuthGuard>} />
               <Route path="/listening" element={<AuthGuard><SubscriptionGuard><ListeningPage /></SubscriptionGuard></AuthGuard>} />

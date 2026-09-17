@@ -232,6 +232,26 @@ export default function Dashboard() {
               </Link>
             </div>
           </div>
+
+          {/* Dictionary & Stroke Order Card */}
+          <Link to="/dictionary" className="block group">
+            <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 sm:p-7 rounded-[32px] text-white shadow-lg shadow-orange-200/50 hover:shadow-xl transition-all relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1.5 z-10 max-w-md">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-xs rounded-full text-[10px] font-black uppercase tracking-wider">
+                  <span>ШИНЭ БОЛОМЖ</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black">Хятад - Монгол Толь Бичиг</h3>
+                <p className="text-white/85 text-xs sm:text-sm font-medium leading-relaxed">
+                  6,180+ үг, 2,000 ханзны хайлт болон зураас бүрийн дэс дарааллаар зурж сурах интерактив талбар.
+                </p>
+              </div>
+              <div className="z-10 flex items-center gap-2 bg-white text-primary-orange font-black px-5 py-3 rounded-2xl text-xs uppercase tracking-wider group-hover:scale-105 transition-transform shrink-0 shadow-md">
+                <span>Толь бичиг нээх</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+              <div className="absolute right-0 top-0 bottom-0 w-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            </div>
+          </Link>
         </div>
 
         <div className="space-y-6">

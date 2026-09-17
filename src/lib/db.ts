@@ -1054,3 +1054,73 @@ export const completeReadingLesson = async (uid: string, level: number, lessonId
   }
 };
 
+const getLevelDigit = (level: string | number): string => {
+  const str = String(level).toUpperCase();
+  const matched = str.match(/\d+/);
+  return matched ? matched[0] : '1';
+};
+
+export const getVocabPosition = async (uid: string, level: string | number): Promise<number> => {
+  if (!uid) return 0;
+  const digit = getLevelDigit(level);
+  const key = `vocabPosition_HSK${digit}`;
+  try {
+    const cached = localStorage.getItem(`cached_vocab_pos_${uid}_${digit}`);
+    if (cached !== null) {
+      const parsed = parseInt(cached, 10);
+      if (!isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    const userDocRef = doc(db, 'users', uid);
+    const uDoc = await getDoc(userDocRef);
+    if (uDoc.exists()) {
+      const data = uDoc.data();
+      const val = data?.[key];
+      if (val !== undefined && typeof val === 'number') {
+        try {
+          localStorage.setItem(`cached_vocab_pos_${uid}_${digit}`, String(val));
+        } catch (e) {}
+        return val;
+      }
+    }
+    return 0;
+  } catch (error: any) {
+    console.warn('getVocabPosition error:', error);
+    try {
+      const cached = localStorage.getItem(`cached_vocab_pos_${uid}_${digit}`);
+      if (cached !== null) {
+        const parsed = parseInt(cached, 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return 0;
+  }
+};
+
+export const saveVocabPosition = async (uid: string, level: string | number, position: number): Promise<void> => {
+  if (!uid) return;
+  const digit = getLevelDigit(level);
+  const key = `vocabPosition_HSK${digit}`;
+  const path = `users/${uid}`;
+  try {
+    try {
+      localStorage.setItem(`cached_vocab_pos_${uid}_${digit}`, String(position));
+    } catch (e) {}
+
+    const userDocRef = doc(db, 'users', uid);
+    await setDoc(userDocRef, {
+      [key]: position
+    }, { merge: true });
+  } catch (error: any) {
+    console.warn('saveVocabPosition error (offline?):', error);
+    const isOffline = error?.message?.includes('offline') || !navigator.onLine;
+    if (isOffline) {
+      return;
+    }
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+

@@ -119,7 +119,7 @@ export default function ListeningLessonPage() {
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = 'zh-CN';
     // Slightly slower rate for easier HSK levels
-    utterance.rate = levelNumber <= 2 ? 0.75 : 0.90;
+    utterance.rate = levelNumber <= 2 ? 0.65 : 0.80;
 
     utterance.onstart = () => setIsPlaying(true);
     utterance.onend = () => setIsPlaying(false);

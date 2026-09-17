@@ -4,7 +4,7 @@ export enum HSKLevel {
   L3 = 3,
   L4 = 4,
   L5 = 5,
-  L6 = 6
+  L6 = 6,
 }
 
 export interface UserProfile {
@@ -18,6 +18,7 @@ export interface UserProfile {
   createdAt: any; // Firestore Timestamp
   password?: string; // Stored locally
   isPaid?: boolean; // subscription status
+  isActive?: boolean; // current access status
   paidUntil?: string; // subscription expiration date
   paymentPending?: boolean; // subscription pending approval
   isTrial?: boolean;
@@ -35,7 +36,7 @@ export interface HSKProgress {
 
 export interface WordMastery {
   wordId: string;
-  status: 'new' | 'learning' | 'mastered';
+  status: "new" | "learning" | "mastered";
   correctCount: number;
   wrongCount: number;
   lastSeenAt: any;
@@ -64,7 +65,7 @@ export interface VocabWord {
 
 export interface QuizQuestion {
   id: string;
-  type: 'multiple-choice' | 'listening';
+  type: "multiple-choice" | "listening";
   question: string;
   options: string[];
   correctIndex: number;
@@ -80,12 +81,12 @@ export interface Lesson {
 }
 
 export enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
+  CREATE = "create",
+  UPDATE = "update",
+  DELETE = "delete",
+  LIST = "list",
+  GET = "get",
+  WRITE = "write",
 }
 
 export interface FirestoreErrorInfo {
@@ -97,7 +98,7 @@ export interface FirestoreErrorInfo {
     email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
-  }
+  };
 }
 
 export interface DailyTip {
@@ -110,4 +111,24 @@ export interface DailyTip {
     etymology?: string;
     examples: { ch: string; mn: string }[];
   }[];
+}
+
+export interface DictionaryWord {
+  id: string;
+  hanzi: string;
+  pinyin: string;
+  mongolian: string;
+  level: HSKLevel;
+  category?: string;
+  characters: string[];
+}
+
+export interface DictionaryCharacter {
+  char: string;
+  pinyin: string;
+  levels: number[];
+  lowestLevel: number;
+  meaning: string;
+  words: { hanzi: string; pinyin: string; mongolian: string; level: number }[];
+  strokeCount?: number;
 }
